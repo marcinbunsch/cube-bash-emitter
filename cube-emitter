@@ -1,0 +1,77 @@
+#!/bin/bash
+
+function usage {
+cat << EOF
+usage: $0 [options] TYPE [PAYLOAD]
+
+Emit an event to cube
+
+You need to provide a TYPE. PAYLOAD is optional, but must be in JSON format.
+
+OPTIONS:
+   -h      show this message
+   -m      id of the message
+   -c      Cube server host
+   -p      Cube server port
+   -t      time of the message
+
+EOF
+}
+
+message_time=
+message_id=
+cube_port='1180'
+cube_host='localhost'
+
+while getopts "hm:c:p:t:" OPTION
+do
+  case $OPTION in
+    h)
+        usage
+        exit 1
+        ;;
+    m)
+        message_id=$OPTION
+        ;;
+    c)
+        cube_host=$OPTARG
+        ;;
+    p)
+        cube_port=$OPTARG
+        ;;
+    t)
+        message_time=$OPTARG
+        ;;
+    ?)
+        usage
+        exit
+        ;;
+  esac
+done
+
+message_type=${@:$OPTIND:1}
+message_payload=${@:$OPTIND+1:1}
+
+if [ -z "$message_type" ]; then
+  echo "ERROR: You need to provide the event type"
+  echo ""
+  usage
+  exit 1
+fi
+
+if [ -z "$message_time" ]; then
+  message_time=`date +"%Y-%m-%dT%H:%M:%S%:z"`
+fi
+
+if [ -z "$message_payload" ]; then
+  message_payload='{}'
+fi
+
+if [ -z "$message_id" ]; then
+  payload="{\"type\":\"$message_type\",\"time\":\"$message_time\",\"data\":${message_payload}}"
+else
+  payload="{\"type\":\"$message_type\",\"time\":\"$message_time\",\"data\":${message_payload}, \"id\":\"$message_id\"}"
+fi
+
+echo -n "$payload" | nc -w1 -u $cube_host $cube_port
+
